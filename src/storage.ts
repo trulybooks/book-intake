@@ -61,6 +61,19 @@ export class StorageService {
 	}
 
 	/**
+	 * Merge fields into one book. A no-op if the book is gone, which happens
+	 * when a sync finishes after staff already removed that book.
+	 */
+	static updateBook(bookId: string, updates: Partial<Omit<Book, 'id'>>): void {
+		const books = this.loadBooks();
+		const book = books.find(b => b.id === bookId);
+		if (!book) return;
+
+		Object.assign(book, updates);
+		this.saveBooks(books);
+	}
+
+	/**
 	 * Generate a unique ID
 	 */
 	private static generateId(): string {

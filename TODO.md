@@ -15,7 +15,8 @@
 - [x] Toast notifications for feedback
 - [x] Loading states and error handling
 - [x] CSV export
-- [x] Google Sheet sync via Apps Script Web App (hardcoded endpoint → `+add` tab, fire-and-forget; see `apps-script/Code.gs`)
+- [x] Google Sheet sync via Apps Script Web App (hardcoded endpoint → `+add` tab; see `apps-script/Code.gs`)
+- [x] Per-book sync status (✅ 已寫入第 N 列 / ⚠️ reason) confirmed by Code.gs's reply, with a 重傳 button; retries are idempotent for 6 hours
 
 ## 🔨 Core Functionality - Ready for Testing
 
@@ -30,6 +31,8 @@
    - [ ] Scan ISBN barcode successfully
    - [ ] Scanned book appears at the top of the list
    - [ ] Scanned ISBN appears in the `+add` tab, columns A and G, as text
+   - [ ] Card shows ✅ with the same row number the Sheet has
+   - [ ] With no signal: card shows ⚠️ and 重傳; after signal returns, 重傳 writes exactly one row
 
 3. **Manual Book Entry**
    - [ ] Hyphenated ISBN (`978-986-...`) is accepted and stored without hyphens
@@ -116,8 +119,7 @@
   - Data usage statistics
 
 - [ ] **Google Sheet Sync polish** (v1 done, see Completed — these are optional follow-ups)
-  - Retry-on-failure / offline queue for sync requests
-  - A way to confirm the Apps Script write actually succeeded (blocked by the no-cors/opaque-response limitation — would need a different transport, e.g. a tiny proxy)
+  - Automatic retry when back online (manual 重傳 exists)
 
 - [ ] **Accessibility**
   - ARIA labels for all interactive elements
@@ -217,4 +219,4 @@
 
 ---
 
-**Last Updated**: 2026-09-14 — removed collections (one flat book list); sync hardcoded to the shop Sheet's `+add` tab via `apps-script/Code.gs`
+**Last Updated**: 2026-09-15 — Chinese button labels (掃描 / 手動輸入 / 下載); per-book sync status confirmed by Code.gs, with 重傳

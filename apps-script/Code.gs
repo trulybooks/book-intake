@@ -8,10 +8,11 @@
 /**
  * BookScan → Google Sheet「+add」分頁
  *
- * BookScan 每新增一本書，就 POST {"isbn": "978…"} 到這個 Web App。
+ * BookScan 每新增一本書，就 POST {"isbn": "978…", "id": "…"} 到這個 Web App。
  * 這裡把 ISBN 寫進「+add」分頁的下一個空白列，A 欄（編號）和 G 欄（ISBN）
  * 都填，跟既有資料的格式一致。書名、作者、定價等欄位留空，交給後續的
- * 書籍更新流程補齊。
+ * 書籍更新流程補齊。回覆 {"status":"ok","row":N}，App 據此顯示「已寫入第 N 列」。
+ * 同一個 id 在 6 小時內重傳，只回報原本那一列，不會重複寫入。
  *
  * 部署（只需做一次）：
  *   1. 這份試算表必須是「Google 試算表」格式，不能是 .xlsx
@@ -30,12 +31,18 @@ var SHEET_NAME = '+add';
 var ISBN_COLUMNS = [1, 7]; // A = 編號, G = ISBN
 
 function doPost(e) {
-  var isbn;
+  var data;
   try {
-    isbn = String(JSON.parse(e.postData.contents).isbn || '').trim();
+    data = JSON.parse(e.postData.contents);
   } catch (err) {
     return json_({ status: 'error', message: 'Body is not JSON' });
   }
+  var isbn = String((data && data.isbn) || '').trim();
+
+  // Per-scan id from the app, used to make retries idempotent. Optional:
+  // anything malformed is ignored rather than rejected.
+  var id = String((data && data.id) || '');
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(id)) id = '';
 
   // The Web App URL ships in BookScan's public bundle, so accept nothing but a
   // well-formed ISBN-13. The app already canonicalizes every entry to that.
@@ -53,6 +60,16 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
+    // A retry of a write that already happened — its reply was lost on the
+    // way back to the phone. Report the original row instead of adding a
+    // duplicate. Checked inside the lock so two retries can't both miss it.
+    // The script cache keeps entries for at most 6 hours.
+    var cache = CacheService.getScriptCache();
+    var seenRow = id ? cache.get('scan:' + id) : null;
+    if (seenRow) {
+      return json_({ status: 'ok', row: Number(seenRow), isbn: isbn, duplicate: true });
+    }
+
     var row = sheet.getLastRow() + 1;
     ISBN_COLUMNS.forEach(function (col) {
       // Plain text, matching the existing rows — as a number Sheets would
@@ -60,6 +77,7 @@ function doPost(e) {
       sheet.getRange(row, col).setNumberFormat('@').setValue(isbn);
     });
     SpreadsheetApp.flush();
+    if (id) cache.put('scan:' + id, String(row), 21600);
     return json_({ status: 'ok', row: row, isbn: isbn });
   } finally {
     lock.releaseLock();

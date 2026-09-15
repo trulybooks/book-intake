@@ -15,7 +15,7 @@ No test suite or linter is configured.
 
 ## Architecture
 
-See `ARCHITECTURE.md` for the full breakdown. Short version: `src/app.ts` coordinates UI events and calls into `storage.ts` (localStorage CRUD), `scanner.ts` (zxing-wasm barcode decoding), `isbn.ts` (ISBN normalization/validation), `sync.ts` (fire-and-forget POST to a user-supplied Google Apps Script Web App), and `export.ts` (CSV export). All state lives in browser localStorage under `bookScan_books` — one flat list. There are no collections (removed 2026-09-14 at the shop's request; the old `bookScan_collections` key is no longer read) and no settings screen: the sync endpoint is the `SYNC_WEB_APP_URL` constant in `sync.ts`.
+See `ARCHITECTURE.md` for the full breakdown. Short version: `src/app.ts` coordinates UI events and calls into `storage.ts` (localStorage CRUD), `scanner.ts` (zxing-wasm barcode decoding), `isbn.ts` (ISBN normalization/validation), `sync.ts` (POST to the shop's Apps Script Web App, reading back the row it wrote), and `export.ts` (CSV export). All state lives in browser localStorage under `bookScan_books` — one flat list. There are no collections (removed 2026-09-14 at the shop's request; the old `bookScan_collections` key is no longer read) and no settings screen: the sync endpoint is the `SYNC_WEB_APP_URL` constant in `sync.ts`.
 
 ## Key design decision: no book-details lookup
 
@@ -37,8 +37,10 @@ record, so the same book must produce the same key whether it was scanned or
 typed. If a workflow ever needs the ISBN exactly as entered, change the ISBN-10
 branch of `parseIsbn` (it is commented) rather than adding a second parser.
 
-## Sync limitation (real, not a bug)
+## Sync: confirmed writes, per-book status
 
-`sync.ts` POSTs with `mode: 'no-cors'` because Apps Script Web Apps don't return readable CORS responses. This means the app can only detect network-level send failures, never whether the Apps Script code actually wrote the row. Don't try to "fix" this by reading the response — it's opaque by design of Apps Script, not this codebase.
+`sync.ts` sends an ordinary CORS POST with a `text/plain` body and **reads Code.gs's JSON reply**. A `text/plain` POST is a "simple" request (no preflight, which Apps Script can't answer); the browser follows Apps Script's 302 to `script.googleusercontent.com`, whose response carries `Access-Control-Allow-Origin: *` — verified from the live site on 2026-09-15. Earlier versions of this file claimed the response was opaque and used `mode: 'no-cors'`; that was wrong. Don't switch the Content-Type to `application/json` (it forces a preflight and every sync fails), and don't go back to `no-cors` (it throws away the confirmation).
 
-The payload is just `{ isbn }` — nothing else. The paired Apps Script is `apps-script/Code.gs`: bound to the shop's Sheet, it writes the ISBN as plain text into columns A (`編號`) and G (`ISBN`) of the `+add` tab at `getLastRow() + 1`, under a script lock, and rejects anything that isn't a 978/979 ISBN-13 (the Web App URL ships in the public bundle, so the script is the only gatekeeper). `src/sync.ts` and `Code.gs` are two halves of one contract — change them together, and redeploy `Code.gs` as a **new version** of the existing deployment, or the live URL keeps running the old code.
+Each `Book` records the last attempt: `syncStatus` (`pending` / `synced` / `failed`), `syncedRow`, `syncError`, `syncAt`. The book card shows it, and anything not `synced` or `pending` gets a 重傳 button. A `pending` book found at startup was cut off by a reload and is turned into `failed`. Books from before this was tracked have no `syncStatus` and show as unrecorded.
+
+The payload is `{ isbn, id }`. The paired Apps Script is `apps-script/Code.gs`: bound to the shop's Sheet, it writes the ISBN as plain text into columns A (`編號`) and G (`ISBN`) of the `+add` tab at `getLastRow() + 1`, under a script lock, and replies `{status:'ok', row}`. It rejects anything that isn't a 978/979 ISBN-13 (the Web App URL ships in the public bundle, so the script is the only gatekeeper), and remembers each `id` → row for 6 hours in the script cache so a 重傳 of a write whose reply was lost returns the original row instead of adding a duplicate. `src/sync.ts` and `Code.gs` are two halves of one contract — change them together, and redeploy `Code.gs` as a **new version** of the existing deployment, or the live URL keeps running the old code.

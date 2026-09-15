@@ -227,6 +227,7 @@ main {
 .book-actions {
     display: flex;
     align-items: center;
+    gap: var(--spacing-sm);
 }
 
 .book-actions button {
@@ -238,6 +239,31 @@ main {
     min-width: var(--tap-target-min);
     min-height: var(--tap-target-min);
     color: var(--danger-color);
+}
+
+/* Sync status line on each book card */
+.book-info .sync-status {
+    margin-top: 2px;
+}
+
+.book-info .sync-ok {
+    color: var(--success-color);
+}
+
+.book-info .sync-failed {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+/* 重傳 - overrides the icon-style .book-actions button rule above */
+.book-actions .btn-retry {
+    background: var(--secondary-color);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 8px 14px;
+    white-space: nowrap;
 }
 
 /* Scanner */

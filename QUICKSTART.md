@@ -46,12 +46,12 @@ npx http-server . -p 8080
 2. **Add Your First Book**
    
    **Via Scanning (Recommended)**:
-   - Click "📷 Scan Book"
+   - Tap "📷 掃描"
    - Point your camera at the ISBN barcode on the back of a book
    - The ISBN is recorded directly and sent to the shop's Google Sheet automatically — there's no book-details lookup, so title/author live in the Sheet
 
    **Via Manual Entry**:
-   - Click "✏️ Add Manually"
+   - Tap "✏️ 手動輸入"
    - Type the ISBN
    - Click "Add Book"
 
@@ -82,6 +82,7 @@ Now any changes to `.ts` files will automatically recompile!
 - ✅ Export the list to CSV
 - ✅ All data stored locally (no account needed!)
 - ✅ Every scanned/added ISBN is sent to the shop's Google Sheet automatically
+- ✅ Each book shows whether it reached the Sheet (✅ row N / ⚠️ reason), with 重傳 for failures
 
 ---
 
@@ -106,7 +107,7 @@ Now any changes to `.ts` files will automatically recompile!
 - All data is stored in your browser's localStorage
 - Data persists between sessions
 - Clearing browser data deletes this device's list (the Google Sheet is unaffected)
-- Export to CSV (📥 button) for a backup; the Google Sheet is the off-device copy
+- Tap 📥 下載 for a CSV backup; the Google Sheet is the off-device copy
 
 ---
 
@@ -122,7 +123,7 @@ Now any changes to `.ts` files will automatically recompile!
 1. Make sure the barcode is an ISBN/EAN-13 (not another type of barcode)
 2. Try better lighting conditions and hold steady ~15-20cm away
 3. Make sure the whole barcode fits inside the scan box
-4. Use "Add Manually" as a fallback
+4. Use "✏️ 手動輸入" as a fallback
 
 ### "Page won't load"
 1. Check that you ran `npm run build`

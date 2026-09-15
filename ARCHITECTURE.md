@@ -117,10 +117,10 @@ and book metadata lives in the synced Google Sheet (the system of record).
 6. Data saved to localStorage
          │
          ▼
-7. SyncService.syncBook() — fire-and-forget POST of the ISBN to Apps Script (if SYNC_WEB_APP_URL is set)
+7. SyncService.syncBook() — POST { isbn, id }; Code.gs replies with the row it wrote
          │
          ▼
-8. UI refreshed with new entry
+8. Book marked synced (row N) or failed (reason); a failed book shows 重傳
 ```
 
 ### Loading the Book List
@@ -163,6 +163,7 @@ and book metadata lives in the synced Google Sheet (the system of record).
 loadBooks(): Book[]
 addBook(isbn: string): Book
 removeBook(bookId: string): void
+updateBook(bookId: string, updates: Partial<Omit<Book, 'id'>>): void
 ```
 
 ### ScannerService
@@ -176,26 +177,28 @@ isRunning(): boolean
 ### SyncService
 
 ```typescript
-syncBook(book: Book): void
+syncBook(book: Book): Promise<SyncResult>   // { ok: true, row } | { ok: false, error }
 ```
 
 There are no sync settings: the Apps Script Web App URL is the `SYNC_WEB_APP_URL` constant
-in `sync.ts` (empty string = sync off). `syncBook` is fire-and-forget: it POSTs using
-`mode: 'no-cors'` + `Content-Type: text/plain` (required because Apps Script Web Apps don't
-return browser-readable CORS responses and can't handle a preflight request). This means the
-app can only detect network-level send failures, never whether Apps Script actually wrote the
-row — a real, permanent limitation of this approach, not a bug to fix later.
+in `sync.ts`. `syncBook` POSTs `{ isbn, id }` with `Content-Type: text/plain` and reads the
+JSON reply. That is a CORS "simple" request, so no preflight is sent (Apps Script can't answer
+one), and Apps Script's final response carries `Access-Control-Allow-Origin: *` — so
+`ok: true` means Code.gs confirmed the row it wrote. Timeouts (20 s), network errors, non-JSON
+replies (e.g. an authorization page) and Code.gs errors all come back as `ok: false` with a
+reason shown to staff.
 
-**Call sites**: `app.ts` calls `SyncService.syncBook()` from exactly two places, both *after*
-`StorageService.addBook()` has already succeeded — `handleScannedISBN()` and
-`handleAddManualBook()` — so sync is always best-effort on top of an already-saved local book,
-never a precondition for it.
+**Call sites**: `app.ts` wraps every call in `syncAndRecord()`, which marks the book
+`pending`, awaits the result and stores `synced` + row or `failed` + reason on the book. It
+runs after `StorageService.addBook()` in `handleScannedISBN()` and `handleAddManualBook()`,
+and from the 重傳 button (`handleRetrySync()`). At startup, `recoverInterruptedSyncs()` turns
+any leftover `pending` into `failed`.
 
-**Payload shape**: just `{ isbn }`, always a canonical ISBN-13. The receiving side is
-`apps-script/Code.gs`: it appends the ISBN as plain text to columns A (`編號`) and G (`ISBN`)
-of the `+add` tab at `getLastRow() + 1`, under a script lock so near-simultaneous scans can't
-collide, and rejects anything that isn't a 978/979 ISBN-13. Its `doGet` is a read-only health
-check for verifying a deployment.
+**Receiving side**: `apps-script/Code.gs` appends the ISBN as plain text to columns A
+(`編號`) and G (`ISBN`) of the `+add` tab at `getLastRow() + 1`, under a script lock, rejects
+anything that isn't a 978/979 ISBN-13, and caches `id` → row for 6 hours so a retry of an
+already-written scan returns the original row (`duplicate: true`) instead of a second row.
+Its `doGet` is a read-only health check.
 
 ### UIUtils
 
@@ -219,6 +222,10 @@ escapeHtml(text: string): string
     id: string              // Unique identifier
     isbn: string            // Canonical ISBN-13 (see isbn.ts)
     addedDate: string       // ISO 8601 date
+    syncStatus?: 'pending' | 'synced' | 'failed'   // absent = before tracking
+    syncedRow?: number      // Sheet row Code.gs reported
+    syncError?: string      // reason the last attempt failed
+    syncAt?: string         // when the last attempt started/finished
 }
 ```
 
@@ -282,7 +289,7 @@ When implementing planned features:
 - **Import**: Add import path for JSON/CSV back into the book list (export already done via `ExportService`)
 - **Search**: Add `SearchService` with indexing
 - **PWA**: Add `ServiceWorker` and manifest.json
-- **Sync robustness**: `SyncService` (done, v1) could grow retry-on-failure/offline queueing
+- **Sync robustness**: `SyncService` (done, v1) could retry automatically when the connection returns (today retry is the manual 重傳 button)
 - **Analytics**: Optional `AnalyticsService` wrapper
 - **Testing**: Jest for unit tests, Playwright for E2E
 

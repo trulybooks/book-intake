@@ -4,6 +4,7 @@ import { UIUtils } from './utils.js';
 import { ExportService } from './export.js';
 import { SyncService } from './sync.js';
 import { parseIsbn, ISBN_REJECTION_MESSAGES } from './isbn.js';
+import { Book } from './types.js';
 
 /**
  * Main application class
@@ -20,8 +21,23 @@ class BookScanApp {
 	 * Initialize the application
 	 */
 	private init(): void {
+		this.recoverInterruptedSyncs();
 		this.setupEventListeners();
 		this.renderBooks();
+	}
+
+	/**
+	 * A send can't survive a page reload, so a book still marked pending was
+	 * cut off mid-flight and its row may or may not exist. Mark it failed so
+	 * it shows a 重傳 button instead of spinning forever.
+	 */
+	private recoverInterruptedSyncs(): void {
+		StorageService.loadBooks()
+			.filter(book => book.syncStatus === 'pending')
+			.forEach(book => StorageService.updateBook(book.id, {
+				syncStatus: 'failed',
+				syncError: '傳送中斷，不確定是否已寫入'
+			}));
 	}
 
 	/**
@@ -92,12 +108,25 @@ class BookScanApp {
                 <div class="book-info">
                     <h3>${UIUtils.escapeHtml(book.isbn)}</h3>
                     <p>${UIUtils.escapeHtml(UIUtils.formatDate(book.addedDate))}</p>
+                    ${this.syncStatusHtml(book)}
                 </div>
                 <div class="book-actions">
+                    ${this.canRetrySync(book)
+				? `<button class="btn-retry" data-id="${book.id}">重傳</button>`
+				: ''}
                     <button class="btn-delete-book" data-id="${book.id}" aria-label="Delete book">🗑️</button>
                 </div>
             </div>
         `).join('');
+
+		// Add retry handlers
+		booksContainer.querySelectorAll('.btn-retry').forEach(btn => {
+			btn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const bookId = btn.getAttribute('data-id');
+				if (bookId) this.handleRetrySync(bookId);
+			});
+		});
 
 		// Add delete handlers
 		booksContainer.querySelectorAll('.btn-delete-book').forEach(btn => {
@@ -107,6 +136,73 @@ class BookScanApp {
 				if (bookId) this.handleDeleteBook(bookId);
 			});
 		});
+	}
+
+	/**
+	 * The last sync outcome for one book, as a status line on its card
+	 */
+	private syncStatusHtml(book: Book): string {
+		const at = book.syncAt ? ` · ${UIUtils.escapeHtml(this.formatTime(book.syncAt))}` : '';
+
+		switch (book.syncStatus) {
+			case 'synced':
+				return `<p class="sync-status sync-ok">✅ 已寫入 Sheet 第 ${Number(book.syncedRow)} 列${at}</p>`;
+			case 'pending':
+				return '<p class="sync-status sync-pending">⏳ 傳送中…</p>';
+			case 'failed':
+				return `<p class="sync-status sync-failed">⚠️ 未傳到 Sheet：${UIUtils.escapeHtml(book.syncError || '原因不明')}${at}</p>`;
+			default:
+				// Added before sync results were recorded: it was probably
+				// sent, but nothing confirmed it.
+				return '<p class="sync-status sync-unknown">❔ 沒有同步紀錄，Sheet 已有這本就不用重傳</p>';
+		}
+	}
+
+	/** Anything except a confirmed or in-flight sync can be sent again. */
+	private canRetrySync(book: Book): boolean {
+		return book.syncStatus !== 'synced' && book.syncStatus !== 'pending';
+	}
+
+	/** Short local date and time, e.g. "9/15 14:32". */
+	private formatTime(iso: string): string {
+		return new Date(iso).toLocaleString('zh-TW', {
+			month: 'numeric',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: false
+		});
+	}
+
+	/**
+	 * Send one book to the Sheet and record the outcome on the book, so its
+	 * card keeps showing whether the last attempt reached the Sheet.
+	 */
+	private async syncAndRecord(book: Book): Promise<void> {
+		StorageService.updateBook(book.id, { syncStatus: 'pending', syncAt: new Date().toISOString() });
+		this.renderBooks();
+
+		const result = await SyncService.syncBook(book);
+		const syncAt = new Date().toISOString();
+
+		if (result.ok) {
+			StorageService.updateBook(book.id, { syncStatus: 'synced', syncedRow: result.row, syncError: undefined, syncAt });
+			UIUtils.showToast(`✅ 已寫入 Sheet 第 ${result.row} 列`, 2000);
+		} else {
+			StorageService.updateBook(book.id, { syncStatus: 'failed', syncError: result.error, syncAt });
+			UIUtils.showToast(`⚠️ 未傳到 Sheet：${result.error}`, 4000);
+		}
+		this.renderBooks();
+	}
+
+	/**
+	 * Handle the 重傳 button on a book card
+	 */
+	private handleRetrySync(bookId: string): void {
+		const book = StorageService.loadBooks().find(b => b.id === bookId);
+		if (!book || !this.canRetrySync(book)) return;
+
+		this.syncAndRecord(book).catch(error => console.error(error));
 	}
 
 	/** Update the line of text under the camera preview. */
@@ -157,10 +253,8 @@ class BookScanApp {
 
 		try {
 			const newBook = StorageService.addBook(isbn);
-			SyncService.syncBook(newBook);
-			this.renderBooks();
-
 			UIUtils.showToast(`Scanned: ${isbn}`);
+			this.syncAndRecord(newBook).catch(error => console.error(error));
 		} catch (error) {
 			UIUtils.showToast((error as Error).message, 5000);
 			console.error(error);
@@ -186,14 +280,12 @@ class BookScanApp {
 
 		try {
 			const newBook = StorageService.addBook(isbn);
-			SyncService.syncBook(newBook);
-			this.renderBooks();
-
 			UIUtils.hideModal('modal-add-book');
 			// Show what was actually stored, not what was typed - hyphens are
 			// stripped and ISBN-10 is converted, so the operator can confirm
 			// the value that reached the Sheet.
 			UIUtils.showToast(`Added ${isbn}`);
+			this.syncAndRecord(newBook).catch(error => console.error(error));
 		} catch (error) {
 			UIUtils.showToast('Failed to add book');
 			console.error(error);

@@ -95,7 +95,7 @@ For production deployment, simply host the following files on any web server:
 
 #### Via Barcode Scanning
 
-1. Click "**📷 Scan Book**"
+1. Tap "**📷 掃描**"
 2. Grant camera permissions if prompted
 3. Point camera at ISBN barcode
 4. The ISBN is added to the top of the list and sent to the Google Sheet
@@ -104,7 +104,7 @@ For production deployment, simply host the following files on any web server:
 
 Use this when scanning isn't available (no camera, damaged barcode, etc.).
 
-1. Click "**✏️ Add Manually**"
+1. Tap "**✏️ 手動輸入**"
 2. Type the ISBN — hyphens and spaces are fine, and ISBN-10 is accepted
 3. Click "**Add Book**" (or just press Enter)
 
@@ -116,6 +116,8 @@ instead of being added to the list and sent to the Sheet.
 
 - **Delete**: Click the 🗑️ icon on any book card. This only removes it from this device's
   list — the row already sent to the Google Sheet stays there.
+- **Sync status**: each book shows whether its last send reached the Sheet (`✅ 已寫入 Sheet
+  第 N 列`) or not (`⚠️ 未傳到 Sheet：…`). Tap **重傳** on a failed one to send it again.
 
 ## Supported Barcodes
 
@@ -166,19 +168,22 @@ already there. Every other column is left for the book-details update step to fi
    see the tab; it writes nothing.
 5. Put that URL in `SYNC_WEB_APP_URL` in `src/sync.ts`, then build and deploy.
 
-**Payload sent per book**: just `{ "isbn": "9786267891124" }`. `Code.gs` rejects anything that
-isn't a 978/979 ISBN-13, because the Web App URL is in the public JavaScript bundle and anyone
-who reads it could POST to it. It also takes a script lock around the write, so two scans a
-second apart can't land on the same row.
+**Payload sent per book**: `{ "isbn": "9786267891124", "id": "<book id>" }`. `Code.gs` rejects
+anything that isn't a 978/979 ISBN-13, because the Web App URL is in the public JavaScript
+bundle and anyone who reads it could POST to it. It takes a script lock around the write, so
+two scans a second apart can't land on the same row, and it remembers each `id` for 6 hours
+so a 重傳 of a write whose reply was lost reports the original row instead of adding a
+duplicate.
 
-**When it fires**: `SyncService.syncBook()` is called from `handleScannedISBN()` and
-`handleAddManualBook()` in `app.ts`, both *after* the book is saved locally — a failed or slow
-sync never blocks adding the book.
+**Confirmed writes**: the app reads Code.gs's reply (`{"status":"ok","row":45}`), so every
+book card shows the real outcome of its last attempt — `✅ 已寫入 Sheet 第 45 列`, or
+`⚠️ 未傳到 Sheet：<reason>` with a **重傳** button. This works because a POST with a
+`text/plain` body needs no CORS preflight and Apps Script's final response carries
+`Access-Control-Allow-Origin: *`. Keep the `text/plain` Content-Type in `src/sync.ts`.
 
-**Important limitation**: Apps Script Web Apps don't return browser-readable CORS responses,
-so the app sends the request with `mode: 'no-cors'` and can't read the result. A "synced"
-toast only confirms the request went out — not that Apps Script actually wrote the row. Check
-the Sheet directly if in doubt.
+**When it fires**: right after a book is saved locally, from `handleScannedISBN()` and
+`handleAddManualBook()` in `app.ts`, and again whenever 重傳 is tapped. A failed or slow sync
+never blocks adding the book; an attempt with no reply after 20 seconds counts as failed.
 
 **If you edit `Code.gs` later**: saving the script does *not* update the deployed Web App. Go
 to **Deploy → Manage deployments** → edit (pencil icon) → **Version: New version** →
@@ -221,7 +226,7 @@ See TODO.md for detailed implementation tasks and future enhancements.
 3. **Camera**: Requires device with camera and HTTPS connection
 4. **Import**: CSV export is supported, but there's no import path back in yet
 5. **No book metadata**: scans record the ISBN only — titles/authors etc. live in your Sheet
-6. **Sync confirmation**: Google Sheet sync can't confirm the write succeeded (see Google Sheet Sync section above)
+6. **Retries are manual**: a failed sync stays ⚠️ until someone taps 重傳 — nothing retries automatically
 7. **Deleting is local only**: removing a book in the app doesn't remove its row from the Sheet
 
 ## Future Enhancements
@@ -250,12 +255,12 @@ See TODO.md for detailed implementation tasks and future enhancements.
 - Hold the phone steady ~15–20 cm from the barcode and let the camera focus
 - Make sure the whole barcode fits inside the scan box
 - Improve lighting; avoid glare on glossy covers
-- Fall back to "✏️ Add Manually" and type the ISBN
+- Fall back to "✏️ 手動輸入" and type the ISBN
 
 ### Storage Full
 
 - Clear browser cache and data
-- Export to CSV first (📥 button) to keep a backup
+- Tap 📥 下載 first to keep a CSV backup
 - Remove books you no longer need from the list (the Sheet keeps them)
 
 ## License

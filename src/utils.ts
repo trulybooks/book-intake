@@ -2,6 +2,8 @@
  * Simple UI utility functions
  */
 export class UIUtils {
+	private static toastTimer: ReturnType<typeof setTimeout> | null = null;
+
 	/**
 	 * Show a toast notification
 	 */
@@ -12,8 +14,14 @@ export class UIUtils {
 		toast.textContent = message;
 		toast.classList.add('active');
 
-		setTimeout(() => {
+		// A newer toast replaces the one on screen. Without clearing the old
+		// timer it would fire part-way and hide the new toast early — which
+		// happens on every scan, where the sync result follows right behind
+		// the "Scanned" toast.
+		if (this.toastTimer !== null) clearTimeout(this.toastTimer);
+		this.toastTimer = setTimeout(() => {
 			toast.classList.remove('active');
+			this.toastTimer = null;
 		}, duration);
 	}
 
