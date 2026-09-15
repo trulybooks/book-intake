@@ -1,57 +1,17 @@
-import { Collection, Book } from './types.js';
+import { Book } from './types.js';
 
 /**
- * Service for exporting collections to CSV format
+ * Service for exporting the book list to CSV format
  */
 export class ExportService {
 	/**
-	 * Export a single collection to CSV
+	 * Export books to CSV
 	 */
-	static exportCollectionToCSV(collection: Collection): string {
-		const headers = ['Title', 'Authors', 'ISBN', 'Publisher', 'Published Date', 'Added Date'];
-		const rows: string[][] = [];
+	static exportBooksToCSV(books: Book[]): string {
+		const rows: string[][] = [['ISBN', 'Added Date']];
 
-		// Add header row
-		rows.push(headers);
-
-		// Add book rows
-		collection.books.forEach(book => {
-			rows.push([
-				book.title,
-				book.authors?.join('; ') || '',
-				book.isbn || '',
-				book.publisher || '',
-				book.publishedDate || '',
-				this.formatDate(book.addedDate)
-			]);
-		});
-
-		return this.convertToCSV(rows);
-	}
-
-	/**
-	 * Export all collections to a single CSV with collection column
-	 */
-	static exportAllCollectionsToCSV(collections: Collection[]): string {
-		const headers = ['Collection', 'Title', 'Authors', 'ISBN', 'Publisher', 'Published Date', 'Added Date'];
-		const rows: string[][] = [];
-
-		// Add header row
-		rows.push(headers);
-
-		// Add book rows from all collections
-		collections.forEach(collection => {
-			collection.books.forEach(book => {
-				rows.push([
-					collection.name,
-					book.title,
-					book.authors?.join('; ') || '',
-					book.isbn || '',
-					book.publisher || '',
-					book.publishedDate || '',
-					this.formatDate(book.addedDate)
-				]);
-			});
+		books.forEach(book => {
+			rows.push([book.isbn, this.formatDate(book.addedDate)]);
 		});
 
 		return this.convertToCSV(rows);
@@ -113,19 +73,10 @@ export class ExportService {
 	}
 
 	/**
-	 * Generate filename for collection export
+	 * Generate filename for the export
 	 */
-	static generateCollectionFilename(collectionName: string): string {
-		const safeName = collectionName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+	static generateFilename(): string {
 		const timestamp = new Date().toISOString().split('T')[0];
-		return `${safeName}_${timestamp}.csv`;
-	}
-
-	/**
-	 * Generate filename for all collections export
-	 */
-	static generateAllCollectionsFilename(): string {
-		const timestamp = new Date().toISOString().split('T')[0];
-		return `all_collections_${timestamp}.csv`;
+		return `books_${timestamp}.csv`;
 	}
 }

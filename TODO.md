@@ -9,46 +9,40 @@
 - [x] LocalStorage service for data persistence
 - [x] ISBN capture flow (scan records ISBN directly; book-details lookup removed by design)
 - [x] Barcode scanner integration (zxing-wasm; replaced Html5Qrcode, whose JS decoder couldn't reliably read EAN-13 on iOS)
-- [x] Collection management (create, rename, delete)
+- [x] ~~Collection management~~ — removed 2026-09-14; books are one flat list
 - [x] Book management (add via scan, add manually, delete)
 - [x] Modal dialogs for user input
 - [x] Toast notifications for feedback
 - [x] Loading states and error handling
-- [x] CSV export (single collection and all collections)
-- [x] Google Sheet sync via Apps Script Web App (opt-in, fire-and-forget)
+- [x] CSV export
+- [x] Google Sheet sync via Apps Script Web App (hardcoded endpoint → `+add` tab, fire-and-forget; see `apps-script/Code.gs`)
 
 ## 🔨 Core Functionality - Ready for Testing
 
 ### Testing Checklist
 
-1. **Collection Management**
-   - [ ] Create new collection
-   - [ ] Rename collection
-   - [ ] Delete collection
-   - [ ] Navigate between collections
-   - [ ] Display book counts correctly
+1. **Book List**
+   - [ ] Books appear newest first
+   - [ ] Book count is correct
 
 2. **Book Scanning**
    - [ ] Camera permissions handling
    - [ ] Scan ISBN barcode successfully
-   - [ ] Add scanned book to collection
-   - [ ] Sync sends the scanned ISBN when sync is enabled
+   - [ ] Scanned book appears at the top of the list
+   - [ ] Scanned ISBN appears in the `+add` tab, columns A and G, as text
 
 3. **Manual Book Entry**
-   - [ ] Add book with all fields
-   - [ ] Add book with only title (minimum requirement)
-   - [ ] Validation working correctly
+   - [ ] Hyphenated ISBN (`978-986-...`) is accepted and stored without hyphens
+   - [ ] ISBN-10 (including one ending in `X`) is stored as its ISBN-13 equivalent
+   - [ ] A wrong check digit is rejected with a message, not saved or synced
+   - [ ] Enter in the ISBN field submits the form
 
 4. **Book Display & Management**
-   - [ ] Books display correctly with cover images
-   - [ ] Books display correctly without cover images
-   - [ ] Delete books from collection
+   - [ ] Delete books from the list (the Sheet row stays)
    - [ ] Empty state shows when no books
 
 5. **Data Persistence**
    - [ ] Data persists after page reload
-   - [ ] Multiple collections maintained correctly
-   - [ ] Books stay in correct collections
 
 6. **Mobile Experience**
    - [ ] Touch targets are easy to tap
@@ -61,14 +55,13 @@
 ### High Priority
 
 - [ ] **Import Functionality** (export to CSV is done, see Completed)
-  - Export collections to JSON
+  - Export the list to JSON
   - Import from JSON file
 
 
 - [ ] **Search & Filter**
-  - Search books within collection by title/author
+  - Search the list by ISBN
   - Filter books by year, author, etc.
-  - Global search across all collections
 
 - [ ] **Sorting Options**
   - Sort by title (A-Z, Z-A)
@@ -96,7 +89,6 @@
 
 - [ ] **Bulk Operations**
   - Select multiple books for deletion
-  - Move books between collections
   - Bulk tag/category assignment
 
 - [ ] **Improved Error Handling**
@@ -119,13 +111,12 @@
   - Background sync
 
 - [ ] **Data Management**
-  - Share collections with others
+  - Share the book list
   - Duplicate detection (same ISBN)
   - Data usage statistics
 
 - [ ] **Google Sheet Sync polish** (v1 done, see Completed — these are optional follow-ups)
   - Retry-on-failure / offline queue for sync requests
-  - Per-collection sheet routing (currently one global endpoint for the whole app)
   - A way to confirm the Apps Script write actually succeeded (blocked by the no-cors/opaque-response limitation — would need a different transport, e.g. a tiny proxy)
 
 - [ ] **Accessibility**
@@ -145,7 +136,7 @@
 
 - [ ] **Social Features**
   - Share book lists
-  - Book club collections
+  - Book club lists
   - Reading challenges
 
 - [ ] **Analytics**
@@ -159,9 +150,9 @@
 - [ ] Long book titles may need better truncation
 - [ ] Scanner may need better lighting instructions for users
 - [ ] Consider adding camera flip button for front/back camera selection
-- [ ] Test localStorage limits with large collections (500+ books)
+- [ ] Test localStorage limits with a large list (500+ books)
 - [ ] Add confirmation for destructive actions (currently using browser confirm)
-- [ ] Improve ISBN validation (currently basic regex)
+- [x] Improve ISBN validation — `src/isbn.ts` verifies ISBN-10/EAN-13 check digits and the 978/979 Bookland prefix, and canonicalizes everything to ISBN-13
 
 ## 📱 Mobile-Specific Testing Needed
 
@@ -226,4 +217,4 @@
 
 ---
 
-**Last Updated**: 2026-07-11 — reconciled with the ISBN-only scan design (no book-details lookup) and current sync/export feature set
+**Last Updated**: 2026-09-14 — removed collections (one flat book list); sync hardcoded to the shop Sheet's `+add` tab via `apps-script/Code.gs`

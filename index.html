@@ -6,7 +6,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="mobile-web-app-capable" content="yes">
-	<title>BookScan - Collection Manager</title>
+	<title>BookScan</title>
 	<link rel="stylesheet" href="styles.css">
 </head>
 
@@ -15,32 +15,15 @@
 		<!-- Header -->
 		<header class="app-header">
 			<h1>📚 BookScan</h1>
-			<button id="btn-settings" class="icon-btn" aria-label="Settings">⚙️</button>
 		</header>
 
 		<!-- Main Container -->
 		<main id="main-view">
-			<!-- Collections View (Default) -->
-			<div id="collections-view" class="view active">
+			<!-- Books View (Default) -->
+			<div id="books-view" class="view active">
 				<div class="view-header">
-					<h2>My Collections</h2>
-					<button id="btn-new-collection" class="btn btn-primary">+ New Collection</button>
-				</div>
-				<div id="collections-list" class="collections-grid">
-					<!-- Collections will be dynamically added here -->
-				</div>
-				<div class="export-all-section">
-					<button id="btn-export-all" class="btn btn-secondary btn-large">📥 Export All Collections to
-						CSV</button>
-				</div>
-			</div>
-
-			<!-- Collection Detail View -->
-			<div id="collection-detail-view" class="view">
-				<div class="view-header">
-					<button id="btn-back" class="btn btn-secondary">← Back</button>
-					<h2 id="collection-title">Collection Name</h2>
-					<button id="btn-collection-menu" class="icon-btn">⋮</button>
+					<h2>Books</h2>
+					<span id="book-count" class="book-count"></span>
 				</div>
 
 				<div class="action-buttons">
@@ -49,7 +32,7 @@
 				</div>
 
 				<div class="export-buttons">
-					<button id="btn-export-collection" class="btn btn-secondary btn-small">📥 Export to CSV</button>
+					<button id="btn-export" class="btn btn-secondary btn-small">📥 Export to CSV</button>
 				</div>
 
 				<div id="books-list" class="books-list">
@@ -70,61 +53,16 @@
 			</div>
 		</main>
 
-		<!-- Modal for New Collection -->
-		<div id="modal-new-collection" class="modal">
-			<div class="modal-content">
-				<h3>New Collection</h3>
-				<input type="text" id="input-collection-name" class="input-text" placeholder="Collection name"
-					maxlength="50">
-				<div class="modal-actions">
-					<button id="btn-cancel-collection" class="btn btn-secondary">Cancel</button>
-					<button id="btn-save-collection" class="btn btn-primary">Create</button>
-				</div>
-			</div>
-		</div>
-
 		<!-- Modal for Manual Book Entry -->
 		<div id="modal-add-book" class="modal">
 			<div class="modal-content">
 				<h3>Add Book Manually</h3>
-				<input type="text" id="input-isbn" class="input-text" placeholder="ISBN *" maxlength="13" required>
+				<input type="text" id="input-isbn" class="input-text"
+					placeholder="ISBN (hyphens OK)" maxlength="20" required
+					autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
 				<div class="modal-actions">
 					<button id="btn-cancel-book" class="btn btn-secondary">Cancel</button>
 					<button id="btn-save-book" class="btn btn-primary">Add Book</button>
-				</div>
-			</div>
-		</div>
-
-		<!-- Modal for Collection Menu -->
-		<div id="modal-collection-menu" class="modal">
-			<div class="modal-content">
-				<h3>Collection Options</h3>
-				<button id="btn-rename-collection" class="btn btn-secondary btn-large">✏️ Rename</button>
-				<button id="btn-export-collection-menu" class="btn btn-secondary btn-large">📥 Export to
-					CSV</button>
-				<button id="btn-delete-collection" class="btn btn-danger btn-large">🗑️ Delete
-					Collection</button>
-				<button id="btn-cancel-menu" class="btn btn-secondary btn-large">Cancel</button>
-			</div>
-		</div>
-
-		<!-- Modal for Settings (Google Sheet sync) -->
-		<div id="modal-sync-settings" class="modal">
-			<div class="modal-content">
-				<h3>Settings</h3>
-				<h4>Google Sheet Sync</h4>
-				<label>
-					<input type="checkbox" id="input-sync-enabled">
-					Enable sync
-				</label>
-				<input type="text" id="input-sync-url" class="input-text"
-					placeholder="Apps Script Web App URL (…/exec)">
-				<p>Scanned ISBNs are sent in the background. This only confirms the request was
-					sent, not that it was saved — check your Sheet directly.</p>
-				<div class="modal-actions">
-					<button id="btn-test-sync" class="btn btn-secondary">Send Test</button>
-					<button id="btn-cancel-sync" class="btn btn-secondary">Cancel</button>
-					<button id="btn-save-sync" class="btn btn-primary">Save</button>
 				</div>
 			</div>
 		</div>

@@ -1,19 +1,19 @@
 **If not obvious, I'm letting you know this application was vibe-coded in 30 minutes, but it solves my problem and maybe yours too; feel free to improve it to meet your neds. I may look at PRs, but you'll likely just want to fork instead**
 
-# BookScan - Mobile Book Collection Manager
+# BookScan - Mobile ISBN Scanner
 
-A mobile-friendly web application for scanning ISBN barcodes and managing book collections. Built with TypeScript and HTML5, all data is stored locally using localStorage.
+A mobile-friendly web application for scanning ISBN barcodes into a list that is sent automatically to a Google Sheet. Built with TypeScript and HTML5; the list itself is stored locally using localStorage.
 
 ## Features
 
-- 📚 **Collection Management**: Create, rename, and delete book collections
 - 📷 **Barcode Scanning**: Scan ISBN/EAN-13 barcodes using device camera
 - 🔍 **ISBN Capture**: Scanned ISBNs are recorded directly — no book-details lookup, no third-party book APIs
 - ✏️ **Manual Entry**: Add books manually if scanning isn't available
+- ✅ **ISBN Validation**: Check digits are verified and everything is stored as a canonical ISBN-13, so a typo never reaches your Sheet
 - 📱 **Mobile-First Design**: Touch-friendly interface optimized for small screens
 - 💾 **Local Storage**: All data stored locally, no backend required
 - 🚀 **Offline-Ready**: Scanning and local storage work without internet (Google Sheet sync needs a connection)
-- 🔄 **Google Sheet Sync (optional)**: Automatically send scanned/added books to a Google Sheet via a Google Apps Script Web App
+- 🔄 **Google Sheet Sync**: Every scanned/added ISBN is sent automatically to the shop's Google Sheet via a Google Apps Script Web App — nothing to set up on the phone
 
 ## Technologies Used
 
@@ -31,9 +31,12 @@ bookScan/
 │   ├── types.ts        # TypeScript interfaces
 │   ├── storage.ts      # localStorage management
 │   ├── scanner.ts      # Barcode scanning service
+│   ├── isbn.ts         # ISBN normalization/validation
 │   ├── export.ts       # CSV export
 │   ├── sync.ts         # Google Sheet sync (Apps Script Web App)
 │   └── utils.ts        # UI utilities
+├── apps-script/
+│   └── Code.gs         # Apps Script half of the sync (pasted into the Sheet)
 ├── dist/               # Compiled JavaScript (generated)
 ├── index.html          # Main HTML file
 ├── styles.css          # Mobile-first CSS
@@ -88,46 +91,47 @@ For production deployment, simply host the following files on any web server:
 
 ## Usage
 
-### Creating a Collection
-
-1. Click "**+ New Collection**" button
-2. Enter a name for your collection
-3. Click "**Create**"
-
 ### Adding Books
 
 #### Via Barcode Scanning
 
-1. Open a collection
-2. Click "**📷 Scan Book**"
-3. Grant camera permissions if prompted
-4. Point camera at ISBN barcode
-5. The ISBN is recorded in the collection and synced to your Google Sheet (if sync is enabled)
+1. Click "**📷 Scan Book**"
+2. Grant camera permissions if prompted
+3. Point camera at ISBN barcode
+4. The ISBN is added to the top of the list and sent to the Google Sheet
 
 #### Manual Entry
 
 Use this when scanning isn't available (no camera, damaged barcode, etc.).
 
-1. Open a collection
-2. Click "**✏️ Add Manually**"
-3. Type the ISBN
-4. Click "**Add Book**"
+1. Click "**✏️ Add Manually**"
+2. Type the ISBN — hyphens and spaces are fine, and ISBN-10 is accepted
+3. Click "**Add Book**" (or just press Enter)
 
-### Managing Collections
-
-- **Rename**: Click menu icon (⋮) → "✏️ Rename"
-- **Delete**: Click menu icon (⋮) → "🗑️ Delete Collection"
+The ISBN is validated before anything is saved: a wrong check digit, a wrong
+length, or a non-book barcode is rejected with a message explaining which,
+instead of being added to the list and sent to the Sheet.
 
 ### Managing Books
 
-- **Delete**: Click the 🗑️ icon on any book card
+- **Delete**: Click the 🗑️ icon on any book card. This only removes it from this device's
+  list — the row already sent to the Google Sheet stays there.
 
 ## Supported Barcodes
 
-- ISBN-13 (EAN-13)
-- ISBN-10
+- ISBN-13 (EAN-13) with a `978` or `979` prefix
+- ISBN-10 (manual entry; converted to its ISBN-13 equivalent when stored)
 
 The scanner is specifically configured to recognize ISBN barcodes used on books.
+Everything is normalized to **ISBN-13, digits only**, before being stored or
+synced, so a book scanned from its barcode and the same book typed in by hand
+produce an identical value in your Sheet.
+
+A 13-digit barcode outside the `978`/`979` Bookland range is a general retail
+product code (in Taiwan, typically one starting `471`), not a book — the scanner
+reports it in the status line and keeps scanning rather than recording it. If you
+need to stock-take non-book items this way, that check lives in `parseIsbn()` in
+`src/isbn.ts`.
 
 ## API Usage
 
@@ -136,92 +140,50 @@ and to the synced Google Sheet). Book metadata lives in the Sheet, which is the 
 record — earlier versions fetched details from Google Books, but Google reduced the
 keyless quota to zero and the lookup added failure modes for no benefit to this workflow.
 
-### Google Sheet Sync (optional)
+### Google Sheet Sync
 
 BookScan is a static site with no backend, so it can't safely hold a Google service-account
-key. Instead, sync works by POSTing to a **Google Apps Script Web App** that you deploy
-yourself, bound to your own Sheet:
+key. Instead, every scanned or typed ISBN is POSTed to a **Google Apps Script Web App**
+bound to the shop's Sheet. The script is [`apps-script/Code.gs`](apps-script/Code.gs); the
+Web App URL is hardcoded as `SYNC_WEB_APP_URL` in `src/sync.ts`, so there is nothing to
+configure on the phone — open the page and scan.
 
-1. Open the target Google Sheet.
-2. **Extensions > Apps Script**. This binds the script to the spreadsheet you opened it
-   from, so it can use `SpreadsheetApp.getActiveSpreadsheet()` without hardcoding the
-   spreadsheet ID.
-3. Find the **gid** of the specific tab you want to sync into: open that tab in the browser
-   and look at the URL, e.g. `.../edit?gid=952194812#gid=952194812` → gid is `952194812`.
-   A spreadsheet can have multiple tabs, and `gid` is how you pin the script to one specific
-   tab regardless of which tab happens to be open when the script runs.
-4. Decide which column the ISBN goes in (as a 1-indexed column number — A=1, B=2, … F=6),
-   and paste in:
-   ```javascript
-   function doPost(e) {
-     var SHEET_GID = 952194812;    // the tab's gid from its URL
-     var ISBN_COLUMN = 6;          // column F
+**Where the ISBN lands**: the `+add` tab, in the next empty row (`getLastRow() + 1`), written
+into both column A (`編號`) and column G (`ISBN`) as plain text — the same shape as the rows
+already there. Every other column is left for the book-details update step to fill in.
 
-     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()
-       .find(function (s) { return s.getSheetId() === SHEET_GID; });
+**One-time setup**:
 
-     if (!sheet) {
-       return ContentService.createTextOutput(
-         JSON.stringify({ status: 'error', message: 'No tab with gid ' + SHEET_GID })
-       ).setMimeType(ContentService.MimeType.JSON);
-     }
+1. The spreadsheet must be a native **Google Sheet**. An uploaded `.xlsx` opened in Sheets
+   (its URL has `rtpof=true`, and the title shows an `.XLSX` badge) can't host Apps Script —
+   use **File → Save as Google Sheets** first, and use the new file from then on.
+2. In that Google Sheet: **Extensions → Apps Script**, replace the editor contents with
+   `apps-script/Code.gs`, and save.
+3. **Deploy → New deployment** → type **Web app** → Execute as **Me** → Who has access
+   **Anyone**. Authorize when asked.
+4. Open the resulting `.../exec` URL in a browser. It should answer
+   `{"status":"ok","sheet":"+add","found":true,...}` — a read-only check that the script can
+   see the tab; it writes nothing.
+5. Put that URL in `SYNC_WEB_APP_URL` in `src/sync.ts`, then build and deploy.
 
-     var data = JSON.parse(e.postData.contents);
-     var isbn = (data.isbn || '').toString().trim();
-     if (!isbn) {
-       return ContentService.createTextOutput(
-         JSON.stringify({ status: 'error', message: 'Missing isbn' })
-       ).setMimeType(ContentService.MimeType.JSON);
-     }
+**Payload sent per book**: just `{ "isbn": "9786267891124" }`. `Code.gs` rejects anything that
+isn't a 978/979 ISBN-13, because the Web App URL is in the public JavaScript bundle and anyone
+who reads it could POST to it. It also takes a script lock around the write, so two scans a
+second apart can't land on the same row.
 
-     // Only write into a row where every column is empty — a row that has
-     // data in ANY column (not just F) is considered "used" and skipped, so
-     // this never overwrites a row you've filled in by hand elsewhere.
-     var targetRow = sheet.getLastRow() + 1;
-
-     sheet.getRange(targetRow, ISBN_COLUMN).setValue(isbn);
-
-     return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
-       .setMimeType(ContentService.MimeType.JSON);
-   }
-   ```
-5. **Deploy > New deployment** → type **Web app** → Execute as **Me** → Who has access **Anyone**.
-6. Copy the resulting `.../exec` URL.
-7. In BookScan, tap the ⚙️ settings icon, check "Enable sync", paste the URL, and tap
-   **Send Test** — check the target tab's column F for a `0000000000000` row before
-   tapping Save, so you know the pipeline actually works end to end (right tab, right
-   column). Delete that test row afterward.
-8. Tap **Save**.
-
-Every book you scan or add manually now has its ISBN sent to that tab's column F in the
-background, with a toast confirming the request was sent (or failed to send).
-
-**Where sync settings live and when it fires**: `{ enabled, webAppUrl }` is stored under the
-localStorage key `bookScan_syncSettings` (separate from the `bookScan_collections` book data).
-`SyncService.syncBook()` is called from two places in `app.ts`, both *after* the book is
-already saved locally: `handleScannedISBN()` (after a barcode scan) and
-`handleAddManualBook()` (after manual entry) — so a failed or slow sync never blocks adding
-the book itself.
-
-**Payload sent per book**: just `{ "isbn": "9780143127550" }` — nothing else. Earlier versions
-also sent `timestamp`/`collection`/`title`/`authors`/`publisher`/`publishedDate`, but since
-both scanning and manual entry are ISBN-only (see [API Usage](#api-usage) above), those fields
-were always empty or a duplicate of the ISBN, so they were dropped from the payload entirely.
-If you need per-collection routing or a timestamp column later, that's a real gap — see
-`TODO.md`.
+**When it fires**: `SyncService.syncBook()` is called from `handleScannedISBN()` and
+`handleAddManualBook()` in `app.ts`, both *after* the book is saved locally — a failed or slow
+sync never blocks adding the book.
 
 **Important limitation**: Apps Script Web Apps don't return browser-readable CORS responses,
-so the app sends the request with `mode: 'no-cors'` and can't read the result. This means a
-"synced" toast only confirms the request went out — not that Apps Script actually wrote the
-row (e.g. a typo'd sheet name or a script error on the Apps Script side is invisible to the
-app). Check your Sheet directly to confirm data is arriving as expected — the **Send Test**
-button in Settings is the fastest way to check this at any time.
+so the app sends the request with `mode: 'no-cors'` and can't read the result. A "synced"
+toast only confirms the request went out — not that Apps Script actually wrote the row. Check
+the Sheet directly if in doubt.
 
-**If you edit your Apps Script code later**: saving the script does *not* update an
-already-deployed Web App. Go to **Deploy → Manage deployments** → edit (pencil icon) your
-deployment → set **Version: New version** → **Deploy**, or the live URL keeps running the
-old code. This is the most common reason sync silently "sends" but nothing shows up in the
-Sheet.
+**If you edit `Code.gs` later**: saving the script does *not* update the deployed Web App. Go
+to **Deploy → Manage deployments** → edit (pencil icon) → **Version: New version** →
+**Deploy**. Editing the existing deployment keeps the same URL; creating a *new* deployment
+produces a new URL, which would then have to go into `src/sync.ts`.
 
 ## Browser Compatibility
 
@@ -242,8 +204,9 @@ Sheet.
 ## Data Storage
 
 All data is stored in browser localStorage:
-- **Key**: `bookScan_collections`
-- **Format**: JSON array of collections
+- **Key**: `bookScan_books`
+- **Format**: JSON array of `{ id, isbn, addedDate }`
+- Earlier versions grouped books into collections under `bookScan_collections`; that key is no longer read
 - **Persistence**: Data persists until explicitly cleared by user
 - **Capacity**: Typically 5-10MB per domain (browser-dependent)
 
@@ -259,13 +222,14 @@ See TODO.md for detailed implementation tasks and future enhancements.
 4. **Import**: CSV export is supported, but there's no import path back in yet
 5. **No book metadata**: scans record the ISBN only — titles/authors etc. live in your Sheet
 6. **Sync confirmation**: Google Sheet sync can't confirm the write succeeded (see Google Sheet Sync section above)
+7. **Deleting is local only**: removing a book in the app doesn't remove its row from the Sheet
 
 ## Future Enhancements
 
-- [ ] Import collections from JSON or CSV
+- [ ] Import books from JSON or CSV
 - [ ] Barcode scanning from image files
 - [ ] Book cover upload for manual entries
-- [ ] Search within collections
+- [ ] Search the book list
 - [ ] Sort and filter options
 - [ ] Statistics and reading progress tracking
 - [ ] Dark mode support
@@ -291,8 +255,8 @@ See TODO.md for detailed implementation tasks and future enhancements.
 ### Storage Full
 
 - Clear browser cache and data
-- Export collections to CSV first (📥 button) to keep a backup
-- Delete unused collections
+- Export to CSV first (📥 button) to keep a backup
+- Remove books you no longer need from the list (the Sheet keeps them)
 
 ## License
 

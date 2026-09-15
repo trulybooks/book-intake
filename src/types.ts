@@ -1,25 +1,11 @@
 /**
- * Book interface representing a single book in a collection
+ * A single scanned or typed book. The ISBN is the whole record — title,
+ * author and the rest live in the Google Sheet it syncs to, which is the
+ * system of record (see CLAUDE.md).
  */
 export interface Book {
 	id: string;
-	isbn?: string;
-	title: string;
-	authors?: string[];
-	publisher?: string;
-	publishedDate?: string;
-	description?: string;
-	thumbnail?: string;
+	/** Canonical ISBN-13, as returned by `parseIsbn()` in isbn.ts. */
+	isbn: string;
 	addedDate: string;
-}
-
-/**
- * Collection interface representing a collection of books
- */
-export interface Collection {
-	id: string;
-	name: string;
-	books: Book[];
-	createdDate: string;
-	modifiedDate: string;
 }

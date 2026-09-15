@@ -1,4 +1,5 @@
 import { prepareZXingModule, readBarcodes, type ReaderOptions } from 'zxing-wasm/reader';
+import { parseIsbn, ISBN_REJECTION_MESSAGES } from './isbn.js';
 
 // Serve the wasm binary from our own dist/ (copied there by the build script)
 // instead of the default CDN, so scanning works without third-party fetches.
@@ -45,8 +46,9 @@ export class ScannerService {
 	 */
 	async startScanner(
 		elementId: string,
-		onSuccess: (decodedText: string) => void,
-		onError?: (error: string) => void
+		onSuccess: (isbn: string) => void,
+		onError?: (error: string) => void,
+		onRejected?: (message: string, code: string) => void
 	): Promise<void> {
 		if (this.isScanning) {
 			throw new Error('Scanner is already running');
@@ -135,10 +137,21 @@ export class ScannerService {
 				try {
 					const results = await readBarcodes(ctx.getImageData(0, 0, cw, ch), READER_OPTIONS);
 					for (const result of results) {
-						if (result.isValid && this.isValidISBN(result.text)) {
-							onSuccess(result.text);
+						if (!result.isValid) continue;
+
+						const parsed = parseIsbn(result.text);
+						if (parsed.ok) {
+							// Hand back the canonical ISBN-13, not the raw
+							// barcode text, so scans and manual entry agree.
+							onSuccess(parsed.isbn);
 							return;
 						}
+
+						// A barcode decoded cleanly but isn't a book ISBN (a
+						// retail product code on the back cover, say). Say so
+						// instead of looking like the scanner is broken, and
+						// keep scanning for a real one.
+						onRejected?.(ISBN_REJECTION_MESSAGES[parsed.reason], result.text);
 					}
 				} catch (error) {
 					// Real decode-infrastructure errors only — "no barcode in
@@ -189,16 +202,5 @@ export class ScannerService {
 			this.containerEl = null;
 		}
 		this.videoEl = null;
-	}
-
-	/**
-	 * Validate if the scanned code is a valid ISBN/EAN-13
-	 */
-	private isValidISBN(code: string): boolean {
-		// Remove any hyphens or spaces
-		const cleanCode = code.replace(/[-\s]/g, '');
-
-		// Check if it's 13 digits (EAN-13/ISBN-13) or 10 digits (ISBN-10)
-		return /^\d{13}$/.test(cleanCode) || /^\d{9}[0-9X]$/i.test(cleanCode);
 	}
 }

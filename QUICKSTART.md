@@ -43,21 +43,14 @@ npx http-server . -p 8080
    - When you first try to scan, your browser will ask for camera access
    - Click "Allow" to enable barcode scanning
 
-2. **Create Your First Collection**
-   - Click the "+ New Collection" button
-   - Give it a name (e.g., "My Books", "To Read", "Sci-Fi Collection")
-   - Click "Create"
-
-3. **Add Your First Book**
+2. **Add Your First Book**
    
    **Via Scanning (Recommended)**:
-   - Open your collection
    - Click "📷 Scan Book"
    - Point your camera at the ISBN barcode on the back of a book
-   - The ISBN is recorded directly (and synced to your Google Sheet if sync is enabled) — there's no book-details lookup, so title/author live in your Sheet
+   - The ISBN is recorded directly and sent to the shop's Google Sheet automatically — there's no book-details lookup, so title/author live in the Sheet
 
    **Via Manual Entry**:
-   - Open your collection
    - Click "✏️ Add Manually"
    - Type the ISBN
    - Click "Add Book"
@@ -82,19 +75,13 @@ Now any changes to `.ts` files will automatically recompile!
 
 ## 📚 What Can You Do?
 
-### Collections
-- ✅ Create unlimited collections
-- ✅ Rename collections
-- ✅ Delete collections
-- ✅ View book count in each collection
-- ✅ Export a collection (or all collections) to CSV
-
 ### Books
 - ✅ Scan ISBN barcodes to add books (ISBN recorded directly, no lookup)
 - ✅ Manually add books by ISBN when scanning isn't available
-- ✅ Delete books from collections
+- ✅ Delete books from the list (this device only — the Sheet keeps its row)
+- ✅ Export the list to CSV
 - ✅ All data stored locally (no account needed!)
-- ✅ Optionally sync scanned/added books to a Google Sheet
+- ✅ Every scanned/added ISBN is sent to the shop's Google Sheet automatically
 
 ---
 
@@ -106,9 +93,8 @@ Now any changes to `.ts` files will automatically recompile!
 - **Mobile**: Works best with back camera on mobile devices
 
 ### Supported Barcodes
-- ISBN-13 (13 digits)
-- ISBN-10 (10 digits)
-- EAN-13 barcodes
+- ISBN-13 / EAN-13 starting 978 or 979
+- ISBN-10 (manual entry; stored as ISBN-13)
 
 ### Browser Compatibility
 - ✅ Chrome/Edge (recommended)
@@ -119,8 +105,8 @@ Now any changes to `.ts` files will automatically recompile!
 ### Data Storage
 - All data is stored in your browser's localStorage
 - Data persists between sessions
-- Clearing browser data will delete your collections
-- Export to CSV (📥 button) for a backup, or enable Google Sheet sync for an off-device copy
+- Clearing browser data deletes this device's list (the Google Sheet is unaffected)
+- Export to CSV (📥 button) for a backup; the Google Sheet is the off-device copy
 
 ---
 
@@ -173,10 +159,9 @@ After getting familiar with the app:
 
 ## 💡 Pro Tips
 
-- Create collections by genre, reading status, or location
 - Use manual entry if a barcode will not scan
 - Scanning and local storage work offline; Google Sheet sync needs an internet connection
-- You can use this on multiple devices, but data won't sync automatically (unless you enable Google Sheet sync)
+- You can use this on multiple devices: each keeps its own list, and all of them send to the same Google Sheet
 
 ---
 

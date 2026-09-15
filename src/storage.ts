@@ -1,139 +1,69 @@
-import { Collection, Book } from './types.js';
+import { Book } from './types.js';
 
 /**
- * Service for managing data persistence using localStorage
+ * Service for managing data persistence using localStorage.
+ *
+ * Books are kept as one flat list. Earlier versions grouped them into named
+ * collections under `bookScan_collections`; that key is no longer read.
  */
 export class StorageService {
-	private static readonly COLLECTIONS_KEY = 'bookScan_collections';
+	private static readonly BOOKS_KEY = 'bookScan_books';
 
 	/**
-	 * Load all collections from localStorage
+	 * Load all books from localStorage, in the order they were added
 	 */
-	static loadCollections(): Collection[] {
+	static loadBooks(): Book[] {
 		try {
-			const data = localStorage.getItem(this.COLLECTIONS_KEY);
+			const data = localStorage.getItem(this.BOOKS_KEY);
 			return data ? JSON.parse(data) : [];
 		} catch (error) {
-			console.error('Error loading collections:', error);
+			console.error('Error loading books:', error);
 			return [];
 		}
 	}
 
 	/**
-	 * Save all collections to localStorage
+	 * Save all books to localStorage
 	 */
-	static saveCollections(collections: Collection[]): void {
+	private static saveBooks(books: Book[]): void {
 		try {
-			localStorage.setItem(this.COLLECTIONS_KEY, JSON.stringify(collections));
+			localStorage.setItem(this.BOOKS_KEY, JSON.stringify(books));
 		} catch (error) {
-			console.error('Error saving collections:', error);
-			throw new Error('Failed to save collections. Storage may be full.');
+			console.error('Error saving books:', error);
+			throw new Error('Failed to save book. Storage may be full.');
 		}
 	}
 
 	/**
-	 * Create a new collection
+	 * Add a book by its canonical ISBN
 	 */
-	static createCollection(name: string): Collection {
-		const collections = this.loadCollections();
-
-		const newCollection: Collection = {
-			id: this.generateId(),
-			name: name.trim(),
-			books: [],
-			createdDate: new Date().toISOString(),
-			modifiedDate: new Date().toISOString()
-		};
-
-		collections.push(newCollection);
-		this.saveCollections(collections);
-
-		return newCollection;
-	}
-
-	/**
-	 * Update a collection
-	 */
-	static updateCollection(collectionId: string, updates: Partial<Collection>): void {
-		const collections = this.loadCollections();
-		const index = collections.findIndex(c => c.id === collectionId);
-
-		if (index === -1) {
-			throw new Error('Collection not found');
-		}
-
-		collections[index] = {
-			...collections[index],
-			...updates,
-			modifiedDate: new Date().toISOString()
-		};
-
-		this.saveCollections(collections);
-	}
-
-	/**
-	 * Delete a collection
-	 */
-	static deleteCollection(collectionId: string): void {
-		const collections = this.loadCollections();
-		const filtered = collections.filter(c => c.id !== collectionId);
-		this.saveCollections(filtered);
-	}
-
-	/**
-	 * Get a single collection by ID
-	 */
-	static getCollection(collectionId: string): Collection | null {
-		const collections = this.loadCollections();
-		return collections.find(c => c.id === collectionId) || null;
-	}
-
-	/**
-	 * Add a book to a collection
-	 */
-	static addBookToCollection(collectionId: string, book: Omit<Book, 'id' | 'addedDate'>): Book {
-		const collections = this.loadCollections();
-		const collection = collections.find(c => c.id === collectionId);
-
-		if (!collection) {
-			throw new Error('Collection not found');
-		}
+	static addBook(isbn: string): Book {
+		const books = this.loadBooks();
 
 		const newBook: Book = {
-			...book,
 			id: this.generateId(),
+			isbn,
 			addedDate: new Date().toISOString()
 		};
 
-		collection.books.push(newBook);
-		collection.modifiedDate = new Date().toISOString();
-
-		this.saveCollections(collections);
+		books.push(newBook);
+		this.saveBooks(books);
 
 		return newBook;
 	}
 
 	/**
-	 * Remove a book from a collection
+	 * Remove a book
 	 */
-	static removeBookFromCollection(collectionId: string, bookId: string): void {
-		const collections = this.loadCollections();
-		const collection = collections.find(c => c.id === collectionId);
-
-		if (!collection) {
-			throw new Error('Collection not found');
-		}
-
-		collection.books = collection.books.filter(b => b.id !== bookId);
-		collection.modifiedDate = new Date().toISOString();
-
-		this.saveCollections(collections);
+	static removeBook(bookId: string): void {
+		const books = this.loadBooks().filter(b => b.id !== bookId);
+		this.saveBooks(books);
 	}
 
 	/**
 	 * Generate a unique ID
 	 */
 	private static generateId(): string {
-		return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 	}
 }
