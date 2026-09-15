@@ -4,7 +4,7 @@ import { parseIsbn, ISBN_REJECTION_MESSAGES } from './isbn.js';
 // Serve the wasm binary from our own dist/ (copied there by the build script)
 // instead of the default CDN, so scanning works without third-party fetches.
 // The path is resolved against the document URL, which works both locally and
-// under the /BookScan/ GitHub Pages base path.
+// under the /book-intake/ GitHub Pages base path.
 prepareZXingModule({
 	overrides: {
 		locateFile: (path: string, prefix: string) =>
