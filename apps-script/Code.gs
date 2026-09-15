@@ -1,4 +1,11 @@
 /**
+ * @OnlyCurrentDoc
+ * Limits the authorization prompt to this one spreadsheet instead of all of
+ * the owner's spreadsheets. The Web App runs as the owner and is open to
+ * Anyone, so it should hold no more access than it needs.
+ */
+
+/**
  * BookScan → Google Sheet「+add」分頁
  *
  * BookScan 每新增一本書，就 POST {"isbn": "978…"} 到這個 Web App。

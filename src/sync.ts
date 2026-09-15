@@ -13,7 +13,7 @@ import { UIUtils } from './utils.js';
  *
  * Empty string means sync is off.
  */
-const SYNC_WEB_APP_URL = '';
+const SYNC_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzOgPWLAS-G47kW7ug48qwpnHcQLIzzCFIVPzve3O8FqKDC5EGaabopUGx4gBc9ju01Zg/exec';
 
 /**
  * Service for syncing books to the shop's Google Sheet via Apps Script.
