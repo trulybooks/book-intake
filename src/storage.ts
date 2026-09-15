@@ -30,7 +30,7 @@ export class StorageService {
 			localStorage.setItem(this.BOOKS_KEY, JSON.stringify(books));
 		} catch (error) {
 			console.error('Error saving books:', error);
-			throw new Error('Failed to save book. Storage may be full.');
+			throw new Error('無法儲存，手機的儲存空間可能已滿');
 		}
 	}
 

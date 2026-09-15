@@ -22,7 +22,7 @@
 			<!-- Books View (Default) -->
 			<div id="books-view" class="view active">
 				<div class="view-header">
-					<h2>Books</h2>
+					<h2>書籍清單</h2>
 					<span id="book-count" class="book-count"></span>
 				</div>
 
@@ -43,8 +43,8 @@
 			<!-- Scanner View -->
 			<div id="scanner-view" class="view">
 				<div class="view-header">
-					<button id="btn-close-scanner" class="btn btn-secondary">✕ Close</button>
-					<h2>Scan ISBN Barcode</h2>
+					<button id="btn-close-scanner" class="btn btn-secondary">✕ 關閉</button>
+					<h2>掃描 ISBN 條碼</h2>
 				</div>
 				<div id="scanner-container">
 					<div id="reader"></div>
@@ -56,13 +56,13 @@
 		<!-- Modal for Manual Book Entry -->
 		<div id="modal-add-book" class="modal">
 			<div class="modal-content">
-				<h3>Add Book Manually</h3>
+				<h3>手動輸入 ISBN</h3>
 				<input type="text" id="input-isbn" class="input-text"
-					placeholder="ISBN (hyphens OK)" maxlength="20" required
+					placeholder="ISBN（可含連字號）" maxlength="20" required
 					autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
 				<div class="modal-actions">
-					<button id="btn-cancel-book" class="btn btn-secondary">Cancel</button>
-					<button id="btn-save-book" class="btn btn-primary">Add Book</button>
+					<button id="btn-cancel-book" class="btn btn-secondary">取消</button>
+					<button id="btn-save-book" class="btn btn-primary">加入</button>
 				</div>
 			</div>
 		</div>
@@ -70,7 +70,7 @@
 		<!-- Loading Overlay -->
 		<div id="loading-overlay" class="loading-overlay">
 			<div class="spinner"></div>
-			<p>Loading...</p>
+			<p>載入中…</p>
 		</div>
 
 		<!-- Toast Notification -->

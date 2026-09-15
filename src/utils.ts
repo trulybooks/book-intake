@@ -17,7 +17,7 @@ export class UIUtils {
 		// A newer toast replaces the one on screen. Without clearing the old
 		// timer it would fire part-way and hide the new toast early — which
 		// happens on every scan, where the sync result follows right behind
-		// the "Scanned" toast.
+		// the 已掃描 toast.
 		if (this.toastTimer !== null) clearTimeout(this.toastTimer);
 		this.toastTimer = setTimeout(() => {
 			toast.classList.remove('active');
@@ -28,7 +28,7 @@ export class UIUtils {
 	/**
 	 * Show loading overlay
 	 */
-	static showLoading(message: string = 'Loading...'): void {
+	static showLoading(message: string = '載入中…'): void {
 		const overlay = document.getElementById('loading-overlay');
 		if (!overlay) return;
 
@@ -94,7 +94,7 @@ export class UIUtils {
 	 */
 	static formatDate(dateString: string): string {
 		const date = new Date(dateString);
-		return date.toLocaleDateString(undefined, {
+		return date.toLocaleDateString('zh-TW', {
 			year: 'numeric',
 			month: 'short',
 			day: 'numeric'

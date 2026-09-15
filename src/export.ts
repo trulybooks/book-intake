@@ -8,7 +8,7 @@ export class ExportService {
 	 * Export books to CSV
 	 */
 	static exportBooksToCSV(books: Book[]): string {
-		const rows: string[][] = [['ISBN', 'Added Date']];
+		const rows: string[][] = [['ISBN', '加入日期']];
 
 		books.forEach(book => {
 			rows.push([book.isbn, this.formatDate(book.addedDate)]);
@@ -65,7 +65,7 @@ export class ExportService {
 	 */
 	private static formatDate(dateString: string): string {
 		const date = new Date(dateString);
-		return date.toLocaleDateString('en-US', {
+		return date.toLocaleDateString('zh-TW', {
 			year: 'numeric',
 			month: '2-digit',
 			day: '2-digit'
@@ -77,6 +77,6 @@ export class ExportService {
 	 */
 	static generateFilename(): string {
 		const timestamp = new Date().toISOString().split('T')[0];
-		return `books_${timestamp}.csv`;
+		return `書籍入庫_${timestamp}.csv`;
 	}
 }

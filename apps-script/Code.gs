@@ -35,7 +35,7 @@ function doPost(e) {
   try {
     data = JSON.parse(e.postData.contents);
   } catch (err) {
-    return json_({ status: 'error', message: 'Body is not JSON' });
+    return json_({ status: 'error', message: '資料格式錯誤（不是 JSON）' });
   }
   var isbn = String((data && data.isbn) || '').trim();
 
@@ -47,12 +47,12 @@ function doPost(e) {
   // The Web App URL ships in BookScan's public bundle, so accept nothing but a
   // well-formed ISBN-13. The app already canonicalizes every entry to that.
   if (!/^97[89]\d{10}$/.test(isbn)) {
-    return json_({ status: 'error', message: 'Not an ISBN-13: ' + isbn });
+    return json_({ status: 'error', message: '不是有效的 ISBN-13：' + isbn });
   }
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
   if (!sheet) {
-    return json_({ status: 'error', message: 'No tab named ' + SHEET_NAME });
+    return json_({ status: 'error', message: '找不到分頁：' + SHEET_NAME });
   }
 
   // Two scans a second apart would otherwise both read the same getLastRow()

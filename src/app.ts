@@ -85,7 +85,7 @@ class BookScanApp {
 
 		const countElement = document.getElementById('book-count');
 		if (countElement) {
-			countElement.textContent = `${books.length} book${books.length !== 1 ? 's' : ''}`;
+			countElement.textContent = `共 ${books.length} 本`;
 		}
 
 		const booksContainer = document.getElementById('books-list');
@@ -94,8 +94,8 @@ class BookScanApp {
 		if (books.length === 0) {
 			booksContainer.innerHTML = `
                 <div class="empty-state">
-                    <h3>No Books Yet</h3>
-                    <p>Scan or add books to get started!</p>
+                    <h3>還沒有書</h3>
+                    <p>按「📷 掃描」或「✏️ 手動輸入」開始加入書籍</p>
                 </div>
             `;
 			return;
@@ -114,7 +114,7 @@ class BookScanApp {
                     ${this.canRetrySync(book)
 				? `<button class="btn-retry" data-id="${book.id}">重傳</button>`
 				: ''}
-                    <button class="btn-delete-book" data-id="${book.id}" aria-label="Delete book">🗑️</button>
+                    <button class="btn-delete-book" data-id="${book.id}" aria-label="刪除">🗑️</button>
                 </div>
             </div>
         `).join('');
@@ -219,7 +219,7 @@ class BookScanApp {
 	private async startScanning(): Promise<void> {
 		UIUtils.switchView('scanner-view');
 
-		this.setScannerStatus('Point camera at ISBN barcode...');
+		this.setScannerStatus('請把相機對準書背的 ISBN 條碼');
 
 		try {
 			await this.scannerService.startScanner(
@@ -253,7 +253,7 @@ class BookScanApp {
 
 		try {
 			const newBook = StorageService.addBook(isbn);
-			UIUtils.showToast(`Scanned: ${isbn}`);
+			UIUtils.showToast(`已掃描：${isbn}`);
 			this.syncAndRecord(newBook).catch(error => console.error(error));
 		} catch (error) {
 			UIUtils.showToast((error as Error).message, 5000);
@@ -284,10 +284,10 @@ class BookScanApp {
 			// Show what was actually stored, not what was typed - hyphens are
 			// stripped and ISBN-10 is converted, so the operator can confirm
 			// the value that reached the Sheet.
-			UIUtils.showToast(`Added ${isbn}`);
+			UIUtils.showToast(`已加入：${isbn}`);
 			this.syncAndRecord(newBook).catch(error => console.error(error));
 		} catch (error) {
-			UIUtils.showToast('Failed to add book');
+			UIUtils.showToast('加入失敗');
 			console.error(error);
 		}
 	}
@@ -298,15 +298,15 @@ class BookScanApp {
 	private handleDeleteBook(bookId: string): void {
 		// Deleting here only affects this device's list. The row already sent
 		// to the Sheet stays there, and staff need to know that.
-		if (!confirm('Remove this book from the list?\n(It is NOT removed from the Google Sheet.)')) return;
+		if (!confirm('要從清單移除這本書嗎？\n（Google Sheet 裡的資料不會被刪除）')) return;
 
 		try {
 			StorageService.removeBook(bookId);
 			this.renderBooks();
 
-			UIUtils.showToast('Book removed');
+			UIUtils.showToast('已移除');
 		} catch (error) {
-			UIUtils.showToast('Failed to remove book');
+			UIUtils.showToast('移除失敗');
 			console.error(error);
 		}
 	}
@@ -318,16 +318,16 @@ class BookScanApp {
 		const books = StorageService.loadBooks();
 
 		if (books.length === 0) {
-			UIUtils.showToast('No books to export');
+			UIUtils.showToast('清單是空的，沒有資料可以下載');
 			return;
 		}
 
 		try {
 			const csvContent = ExportService.exportBooksToCSV(books);
 			ExportService.downloadCSV(csvContent, ExportService.generateFilename());
-			UIUtils.showToast(`Exported ${books.length} book${books.length !== 1 ? 's' : ''}`);
+			UIUtils.showToast(`已下載 ${books.length} 本書的清單`);
 		} catch (error) {
-			UIUtils.showToast('Failed to export books');
+			UIUtils.showToast('下載失敗');
 			console.error(error);
 		}
 	}

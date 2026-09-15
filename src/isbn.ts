@@ -26,11 +26,11 @@ export type IsbnResult =
 
 /** Human-readable explanation for each rejection, for toasts and scanner status. */
 export const ISBN_REJECTION_MESSAGES: Record<IsbnRejection, string> = {
-	'empty': 'ISBN is required',
-	'bad-characters': 'ISBN may only contain digits (and a trailing X)',
-	'bad-length': 'ISBN must be 10 or 13 digits',
-	'bad-checksum': 'ISBN check digit is wrong - re-check the number',
-	'not-bookland': 'Not a book barcode (must start 978 or 979)'
+	'empty': '請輸入 ISBN',
+	'bad-characters': 'ISBN 只能有數字（ISBN-10 最後一碼可以是 X）',
+	'bad-length': 'ISBN 必須是 10 碼或 13 碼',
+	'bad-checksum': '檢查碼不對，請再核對一次號碼',
+	'not-bookland': '這不是書籍條碼（ISBN 要以 978 或 979 開頭）'
 };
 
 /**

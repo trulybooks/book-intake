@@ -51,12 +51,12 @@ export class ScannerService {
 		onRejected?: (message: string, code: string) => void
 	): Promise<void> {
 		if (this.isScanning) {
-			throw new Error('Scanner is already running');
+			throw new Error('相機已經在掃描中');
 		}
 
 		const container = document.getElementById(elementId);
 		if (!container) {
-			throw new Error(`Scanner container #${elementId} not found`);
+			throw new Error(`找不到掃描畫面（#${elementId}）`);
 		}
 
 		try {
@@ -70,7 +70,7 @@ export class ScannerService {
 			});
 		} catch (error) {
 			console.error('Error starting scanner:', error);
-			throw new Error('Failed to start camera. Please grant camera permissions.');
+			throw new Error('無法開啟相機，請允許這個網站使用相機');
 		}
 
 		// Wrapper keeps the scan-box overlay aligned with the video regardless
@@ -111,7 +111,7 @@ export class ScannerService {
 		} catch (error) {
 			console.error('Error playing camera stream:', error);
 			this.cleanup();
-			throw new Error('Failed to start camera. Please grant camera permissions.');
+			throw new Error('無法開啟相機，請允許這個網站使用相機');
 		}
 
 		this.isScanning = true;
