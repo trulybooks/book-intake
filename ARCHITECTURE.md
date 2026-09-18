@@ -106,9 +106,9 @@ and book metadata lives in the synced Google Sheet (the system of record).
 4. zxing-wasm decodes a barcode from the cropped scan region
          │
          ▼
-4b. parseIsbn() validates the check digit and the 978/979 Bookland prefix.
-    A non-book barcode is reported in the scanner status line and scanning
-    continues; only a valid ISBN, canonicalized to ISBN-13, gets through.
+4b. parseIsbn() validates the check digit (EAN-13, UPC-A, EAN-8 or ISBN-10).
+    Non-book retail barcodes are accepted and stored as printed; a code that
+    fails is reported in the scanner status line and scanning continues.
          │
          ▼
 5. StorageService.addBook() — ISBN recorded as the entry
@@ -196,8 +196,9 @@ any leftover `pending` into `failed`.
 
 **Receiving side**: `apps-script/Code.gs` appends the ISBN as plain text to columns A
 (`編號`) and G (`ISBN`) of the `+add` tab at `getLastRow() + 1`, under a script lock, rejects
-anything that isn't a 978/979 ISBN-13, and caches `id` → row for 6 hours so a retry of an
-already-written scan returns the original row (`duplicate: true`) instead of a second row.
+anything whose check digit is wrong or whose length isn't 8/12/13, and caches `id` → row for
+6 hours so a retry of an already-written scan returns the original row (`duplicate: true`)
+instead of a second row.
 Its `doGet` is a read-only health check.
 
 ### UIUtils
@@ -220,7 +221,7 @@ escapeHtml(text: string): string
 ```typescript
 {
     id: string              // Unique identifier
-    isbn: string            // Canonical ISBN-13 (see isbn.ts)
+    isbn: string            // Barcode as stored (see isbn.ts)
     addedDate: string       // ISO 8601 date
     syncStatus?: 'pending' | 'synced' | 'failed'   // absent = before tracking
     syncedRow?: number      // Sheet row Code.gs reported

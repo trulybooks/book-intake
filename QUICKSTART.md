@@ -94,8 +94,9 @@ Now any changes to `.ts` files will automatically recompile!
 - **Mobile**: Works best with back camera on mobile devices
 
 ### Supported Barcodes
-- ISBN-13 / EAN-13 starting 978 or 979
-- ISBN-10 (manual entry; stored as ISBN-13)
+- EAN-13：書籍的 ISBN（978／979 開頭）與一般商品條碼都收
+- UPC-A（12 碼）、EAN-8（8 碼）
+- ISBN-10（手動輸入；存成 ISBN-13）
 
 ### Browser Compatibility
 - ✅ Chrome/Edge (recommended)

@@ -23,19 +23,25 @@ Scanning a barcode records the **ISBN only** — there is deliberately no call t
 
 Do not reintroduce a book-details API call as a "quick fix" — it was removed on purpose. If you see stale references to fetching book details elsewhere in the repo, that's docs/comments lagging behind this decision; fix the doc, not the code.
 
-## ISBN handling: one parser, canonical ISBN-13
+## Barcode handling: one parser, stored as printed
 
-`src/isbn.ts` is the only place that decides whether a string is a usable ISBN.
-Both `ScannerService` (barcode results) and `handleAddManualBook` (typed input)
-call `parseIsbn()` and store what it returns — never the raw input. It strips
-hyphens/spaces/Unicode dashes, verifies the ISBN-10 or EAN-13 check digit,
-rejects 13-digit barcodes outside the 978/979 Bookland range, and converts
-ISBN-10 to its ISBN-13 equivalent.
+`src/isbn.ts` is the only place that decides whether a string is a usable
+barcode. Both `ScannerService` (barcode results) and `handleAddManualBook`
+(typed input) call `parseIsbn()` and store what it returns — never the raw
+input. It strips hyphens/spaces/Unicode dashes and verifies the check digit of
+an ISBN-10, EAN-13, UPC-A or EAN-8.
 
-The ISBN-10 → ISBN-13 conversion is deliberate: the Sheet is the system of
-record, so the same book must produce the same key whether it was scanned or
-typed. If a workflow ever needs the ISBN exactly as entered, change the ISBN-10
-branch of `parseIsbn` (it is commented) rather than adding a second parser.
+**Non-book barcodes are recorded on purpose** (changed 2026-09-18 at the shop's
+request): the 978/979 Bookland range is not required, because the shop stocks
+more than books. Don't reintroduce that restriction. The check digit is still
+enforced — on the phone and again in `apps-script/Code.gs`, whose URL is public —
+because that is what catches a mistyped number.
+
+The ISBN-10 → ISBN-13 conversion is the one normalization left: the Sheet is the
+system of record, so the same book must produce the same key whether it was
+scanned or typed. If a workflow ever needs the code exactly as entered, change
+the ISBN-10 branch of `parseIsbn` (it is commented) rather than adding a second
+parser.
 
 ## Sync: confirmed writes, per-book status
 

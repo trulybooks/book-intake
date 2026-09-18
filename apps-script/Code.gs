@@ -12,10 +12,11 @@
  *
  * 1. 掃描（沒有 action 欄位，不需要密鑰）
  *    書籍入庫 App 每新增一本書，就 POST {"isbn": "978…", "id": "…"}。
- *    這裡把 ISBN 寫進「+add」分頁的下一個空白列，A 欄（編號）和 G 欄（ISBN）
+ *    這裡把條碼寫進「+add」分頁的下一個空白列，A 欄（編號）和 G 欄（ISBN）
  *    都填，跟既有資料的格式一致。回覆 {"status":"ok","row":N}，App 據此顯示
  *    「已寫入第 N 列」。同一個 id 在 6 小時內重傳，只回報原本那一列，不會重複寫入。
- *    手機網頁是公開的，放不了密鑰，所以這條路只准做一件事：新增一列格式正確的 ISBN-13。
+ *    手機網頁是公開的，放不了密鑰，所以這條路只准做一件事：新增一列檢查碼正確的
+ *    商品條碼（EAN-13／UPC-A／EAN-8，書籍的 ISBN-13 也在其中）。
  *
  * 2. 管理動作（有 action 欄位，一定要帶密鑰）
  *    給本機的 scripts/gsheet.py（/線上書籍更新）用：
@@ -83,17 +84,19 @@ function doGet() {
 // ---------------------------------------------------------------------------
 
 function appendScan_(data) {
-  var isbn = String((data && data.isbn) || '').trim();
+  var code = String((data && data.isbn) || '').trim();
 
   // Per-scan id from the app, used to make retries idempotent. Optional:
   // anything malformed is ignored rather than rejected.
   var id = String((data && data.id) || '');
   if (!/^[A-Za-z0-9-]{1,64}$/.test(id)) id = '';
 
-  // The Web App URL ships in BookScan's public bundle, so accept nothing but a
-  // well-formed ISBN-13. The app already canonicalizes every entry to that.
-  if (!/^97[89]\d{10}$/.test(isbn)) {
-    return json_({ status: 'error', message: '不是有效的 ISBN-13：' + isbn });
+  // The shop stocks non-book items, so any well-formed retail barcode is
+  // accepted: EAN-13 (ISBNs included), UPC-A and EAN-8. The Web App URL ships
+  // in BookScan's public bundle, so the check digit still has to be right —
+  // that keeps junk out without blocking a jar of honey.
+  if (!/^(\d{8}|\d{12}|\d{13})$/.test(code) || !eanChecksumOk_(code)) {
+    return json_({ status: 'error', message: '不是有效的條碼：' + code });
   }
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
@@ -113,18 +116,18 @@ function appendScan_(data) {
     var cache = CacheService.getScriptCache();
     var seenRow = id ? cache.get('scan:' + id) : null;
     if (seenRow) {
-      return json_({ status: 'ok', row: Number(seenRow), isbn: isbn, duplicate: true });
+      return json_({ status: 'ok', row: Number(seenRow), isbn: code, duplicate: true });
     }
 
     var row = sheet.getLastRow() + 1;
     ISBN_COLUMNS.forEach(function (col) {
       // Plain text, matching the existing rows — as a number Sheets would
       // display 9786267891124 as 9.78627E+12.
-      sheet.getRange(row, col).setNumberFormat('@').setValue(isbn);
+      sheet.getRange(row, col).setNumberFormat('@').setValue(code);
     });
     SpreadsheetApp.flush();
     if (id) cache.put('scan:' + id, String(row), 21600);
-    return json_({ status: 'ok', row: row, isbn: isbn });
+    return json_({ status: 'ok', row: row, isbn: code });
   } finally {
     lock.releaseLock();
   }
@@ -166,6 +169,20 @@ function handleAction_(data) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Check digit of an EAN-13, UPC-A or EAN-8 code. All three weight the digits
+ * 3 and 1 alternately, counting leftwards from the digit next to the check
+ * digit, so the weights start differently for even and odd lengths.
+ */
+function eanChecksumOk_(code) {
+  var body = code.slice(0, -1);
+  var sum = 0;
+  for (var i = 0; i < body.length; i++) {
+    sum += (body.charCodeAt(i) - 48) * ((body.length - 1 - i) % 2 === 0 ? 3 : 1);
+  }
+  return (10 - (sum % 10)) % 10 === code.charCodeAt(code.length - 1) - 48;
 }
 
 /**

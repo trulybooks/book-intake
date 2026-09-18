@@ -30,7 +30,8 @@
    - [ ] Camera permissions handling
    - [ ] Scan ISBN barcode successfully
    - [ ] Scanned book appears at the top of the list
-   - [ ] Scanned ISBN appears in the `+add` tab, columns A and G, as text
+   - [ ] Scanned code appears in the `+add` tab, columns A and G, as text
+   - [ ] A non-book retail barcode (e.g. `471…`) is accepted and reaches the Sheet
    - [ ] Card shows ✅ with the same row number the Sheet has
    - [ ] With no signal: card shows ⚠️ and 重傳; after signal returns, 重傳 writes exactly one row
 
@@ -154,7 +155,7 @@
 - [ ] Consider adding camera flip button for front/back camera selection
 - [ ] Test localStorage limits with a large list (500+ books)
 - [ ] Add confirmation for destructive actions (currently using browser confirm)
-- [x] Improve ISBN validation — `src/isbn.ts` verifies ISBN-10/EAN-13 check digits and the 978/979 Bookland prefix, and canonicalizes everything to ISBN-13
+- [x] Improve barcode validation — `src/isbn.ts` verifies ISBN-10/EAN-13/UPC-A/EAN-8 check digits; non-book retail barcodes are accepted on purpose (2026-09-18)
 
 ## 📱 Mobile-Specific Testing Needed
 

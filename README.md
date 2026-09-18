@@ -9,7 +9,7 @@ A mobile-friendly web application for scanning ISBN barcodes into a list that is
 - 📷 **Barcode Scanning**: Scan ISBN/EAN-13 barcodes using device camera
 - 🔍 **ISBN Capture**: Scanned ISBNs are recorded directly — no book-details lookup, no third-party book APIs
 - ✏️ **Manual Entry**: Add books manually if scanning isn't available
-- ✅ **ISBN Validation**: Check digits are verified and everything is stored as a canonical ISBN-13, so a typo never reaches your Sheet
+- ✅ **Barcode Validation**: Check digits are verified before anything is stored, so a typo never reaches your Sheet. Non-book retail barcodes are accepted too — the shop stocks more than books
 - 📱 **Mobile-First Design**: Touch-friendly interface optimized for small screens
 - 💾 **Local Storage**: All data stored locally, no backend required
 - 🚀 **Offline-Ready**: Scanning and local storage work without internet (Google Sheet sync needs a connection)
@@ -121,19 +121,20 @@ instead of being added to the list and sent to the Sheet.
 
 ## Supported Barcodes
 
-- ISBN-13 (EAN-13) with a `978` or `979` prefix
+- EAN-13, which covers book ISBN-13s (`978`/`979`) **and** ordinary retail
+  products — the shop stocks non-book items, so these are recorded too
+- UPC-A (12 digits) and EAN-8 (8 digits)
 - ISBN-10 (manual entry; converted to its ISBN-13 equivalent when stored)
 
-The scanner is specifically configured to recognize ISBN barcodes used on books.
-Everything is normalized to **ISBN-13, digits only**, before being stored or
-synced, so a book scanned from its barcode and the same book typed in by hand
-produce an identical value in your Sheet.
+Codes are stored **digits only, exactly as printed**, so an item scanned from its
+barcode and the same item typed in by hand produce an identical value in your
+Sheet. ISBN-10 is the one exception: it becomes the ISBN-13 the book's barcode
+carries.
 
-A 13-digit barcode outside the `978`/`979` Bookland range is a general retail
-product code (in Taiwan, typically one starting `471`), not a book — the scanner
-reports it in the status line and keeps scanning rather than recording it. If you
-need to stock-take non-book items this way, that check lives in `parseIsbn()` in
-`src/isbn.ts`.
+What is still refused, on the phone and again in Apps Script: anything that isn't
+digits, a length other than 8/10/12/13, and — the useful one — a **wrong check
+digit**, which is what catches a mistyped number. That rule lives in
+`parseIsbn()` in `src/isbn.ts` and `eanChecksumOk_()` in `apps-script/Code.gs`.
 
 ## API Usage
 

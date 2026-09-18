@@ -1,24 +1,25 @@
 /**
- * ISBN normalization and validation.
+ * Barcode normalization and validation.
  *
  * Single source of truth for both entry paths (camera scan and manual typing),
- * so the same book always produces the same string. That matters because the
+ * so the same item always produces the same string. That matters because the
  * synced Google Sheet is the system of record: if a scan wrote
  * `9789573317249` and manual entry wrote `957-33-1724-3` for the same book,
  * the Sheet would carry two unmatchable keys for one title.
  *
- * Canonical form is ISBN-13, digits only. ISBN-10 input is converted (see
- * `isbn10To13`) rather than rejected — old stock still carries ISBN-10 on the
- * copyright page.
+ * The shop stocks non-book items too, so any well-formed retail barcode is
+ * accepted — EAN-13 (including the 978/979 Bookland range used by ISBNs),
+ * UPC-A and EAN-8 — and stored exactly as printed. ISBN-10 is the one
+ * exception: it is converted to its ISBN-13 equivalent (see `isbn10To13`),
+ * because the same book's barcode always carries the 13-digit form.
  */
 
-/** Why a candidate string is not a usable ISBN. */
+/** Why a candidate string is not a usable barcode. */
 export type IsbnRejection =
 	| 'empty'
 	| 'bad-characters'
 	| 'bad-length'
-	| 'bad-checksum'
-	| 'not-bookland';
+	| 'bad-checksum';
 
 export type IsbnResult =
 	| { ok: true; isbn: string }
@@ -26,11 +27,10 @@ export type IsbnResult =
 
 /** Human-readable explanation for each rejection, for toasts and scanner status. */
 export const ISBN_REJECTION_MESSAGES: Record<IsbnRejection, string> = {
-	'empty': '請輸入 ISBN',
-	'bad-characters': 'ISBN 只能有數字（ISBN-10 最後一碼可以是 X）',
-	'bad-length': 'ISBN 必須是 10 碼或 13 碼',
-	'bad-checksum': '檢查碼不對，請再核對一次號碼',
-	'not-bookland': '這不是書籍條碼（ISBN 要以 978 或 979 開頭）'
+	'empty': '請輸入條碼',
+	'bad-characters': '條碼只能有數字（ISBN-10 最後一碼可以是 X）',
+	'bad-length': '條碼必須是 8、12 或 13 碼（ISBN-10 為 10 碼）',
+	'bad-checksum': '檢查碼不對，請再核對一次號碼'
 };
 
 /**
@@ -41,7 +41,7 @@ export const ISBN_REJECTION_MESSAGES: Record<IsbnRejection, string> = {
  * `bad-characters` rather than silently discarded.
  */
 export function normalizeIsbn(raw: string): string {
-	return raw.replace(/[\s\u00a0\u2010-\u2015-]/g, '').toUpperCase();
+	return raw.replace(/[\s ‐-―-]/g, '').toUpperCase();
 }
 
 /** ISBN-10 check: sum of digit x (10..1) must be divisible by 11, X = 10. */
@@ -64,6 +64,20 @@ function isbn13CheckDigit(first12: string): string {
 	return String((10 - (sum % 10)) % 10);
 }
 
+/**
+ * Check digit of an EAN-13, UPC-A or EAN-8 code. All three weight the digits
+ * 3 and 1 alternately, counting leftwards from the digit next to the check
+ * digit — which is why the weights start differently for even and odd lengths.
+ */
+function eanChecksumOk(code: string): boolean {
+	const body = code.slice(0, -1);
+	let sum = 0;
+	for (let i = 0; i < body.length; i++) {
+		sum += (body.charCodeAt(i) - 48) * ((body.length - 1 - i) % 2 === 0 ? 3 : 1);
+	}
+	return (10 - (sum % 10)) % 10 === code.charCodeAt(code.length - 1) - 48;
+}
+
 /** Convert a valid ISBN-10 to its ISBN-13 equivalent (Bookland prefix 978). */
 export function isbn10To13(isbn10: string): string {
 	const body = '978' + isbn10.slice(0, 9);
@@ -71,10 +85,11 @@ export function isbn10To13(isbn10: string): string {
 }
 
 /**
- * Parse arbitrary user or scanner input into a canonical ISBN-13.
+ * Parse arbitrary user or scanner input into the value to store.
  *
- * To keep ISBNs exactly as entered instead of converting ISBN-10 to ISBN-13,
- * return `{ ok: true, isbn: cleaned }` from the ISBN-10 branch below.
+ * ISBN-10 becomes its ISBN-13 equivalent; every other accepted code is kept
+ * exactly as printed. To store ISBN-10 as typed instead, return
+ * `{ ok: true, isbn: cleaned }` from the ISBN-10 branch below.
  */
 export function parseIsbn(raw: string): IsbnResult {
 	const cleaned = normalizeIsbn(raw);
@@ -89,18 +104,13 @@ export function parseIsbn(raw: string): IsbnResult {
 		return { ok: true, isbn: isbn10To13(cleaned) };
 	}
 
-	if (cleaned.length === 13) {
+	// EAN-13 (books and everything else), UPC-A and EAN-8. The shop stocks
+	// non-book items, so the 978/979 Bookland range is not required.
+	if (cleaned.length === 13 || cleaned.length === 12 || cleaned.length === 8) {
 		if (cleaned.includes('X')) return { ok: false, reason: 'bad-characters' };
-		// 978/979 is the Bookland range. A 13-digit barcode outside it is a
-		// regular retail product (or a Taiwanese 471... article code), not a book.
-		if (!/^97[89]/.test(cleaned)) return { ok: false, reason: 'not-bookland' };
-		if (!isbn13ChecksumOk(cleaned)) return { ok: false, reason: 'bad-checksum' };
+		if (!eanChecksumOk(cleaned)) return { ok: false, reason: 'bad-checksum' };
 		return { ok: true, isbn: cleaned };
 	}
 
 	return { ok: false, reason: 'bad-length' };
-}
-
-function isbn13ChecksumOk(isbn: string): boolean {
-	return isbn13CheckDigit(isbn.slice(0, 12)) === isbn[12];
 }
